@@ -1,0 +1,206 @@
+\documentclass[12pt]{extarticle}
+
+\title{
+{\LARGE \bfseries Predicting the Upcoming Primaries using Twitter Data}
+}
+
+\author{Scott Sullivan}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This is the abstract.
+
+\end{abstract}
+
+\newpage
+
+\section{Introduction}
+Twitter offers an interesting dataset for analyzing and predicting election results.
+
+\section{Methods}
+\subsection{Downloading and Organizing Tweets}
+First, tweets were downloaded and categorized as either pro-Sanders or pro-Clinton.
+Rather than using sentiment analysis, each tweet was filtered using hashtags.
+Although this is a particularly strong filter (resulting in fewer tweets than simply matching candidate names), the sentiment of each tweet is more unambiguous.
+The hashtags used in the analysis are shown in the table below.
+\\
+\\
+\begin{centering}
+	\begin{tabular}{|c|c|} \hline
+    Candidate & Positive hashtags \\ \hline 
+    Bernie Sanders & \#feelthebern, \#bernieorbust, \#stillsanders, \#bernie2016 \\ \hline
+    Hillary Clinton & \#hillary2016, \#imwithher, \#clintonfoundation \\ \hline
+  \end{tabular}
+\end{centering}
+\\
+\\
+For the analysis, estimates for candidate support were based on number of users rather than number of tweets.
+This removes any bias towards users who tweet more often.
+Each user's preferred candidate was calculated by tallying the number of pro-Clinton tweets versus the number of pro-Sanders tweets.
+\\
+\indent
+Next, the users were separated into different states.
+It was found that matching a simple regular expression on each user's location could reliably retrieve a user's state for about a third of all tweets.
+The algorithm matched either the state's full name, or the state's abbreviation at the end of the user's location.
+For Washington, the full-name match was excluded in order to avoid ambiguity with the District of Columbia.
+
+\subsection{Predicting Future Delegates}
+In order to predict future delegates, results from past primaries can be used in a fitting function.
+For the 44 states whose primary has already occured, the number of votes for each candidate was downloaded from Google.
+There exist several possible biases which must be accounted before selecting a fitting approach.
+\\
+\indent
+The first is the bias between each candidate's Twitter supporters and voters.
+For example, if Sanders supporters are younger, and Twitter users are also younger, than Sanders would be overestimated in the Twitter data relative to the election results.
+To take this bias into account, the ratio between voters and Twitter supporters was fitted using past primaries and used to predict future primaries.
+If $V_S$ is the number of Sanders voters in a state, and $T_S$ is the number of Sanders Twitter supporters in a state, the ratio $R_S = V_S / T_S$ can be defined as the ratio between voters and Twitter supporters for Sanders in some state.
+Similarly, $R_C$ can be defined for Clinton instead of Sanders.
+\\
+\indent
+The second bias to take into account is the varying degree of total voters in each state.
+Some states have caucuses, others have closed primaries, and others have open primaries.
+The different rules in each state affect the total amount of voter participation.
+Therefore, simply averaging $R_S$ and $R_C$ won't work.
+However, a new ratio can be defined as $R_R = R_S / R_C$.
+This ratio of ratios should be similar across all states, since it is independent of total voter participation.
+The ratio of ratios can be fitted by averaging data from past primaries, then used to calculate future primary results.
+\\
+\indent
+If the ratio of ratios is known, and the number of Twitter supporters for each candidate is known, then the number of received delegates can be estimated as follows.
+The ratio of votes is given by
+\begin{equation}
+\frac{V_S}{V_C} = \frac{R_S T_S}{R_C T_C} = R_R \frac{T_S}{T_C}.
+\end{equation}
+This should be proportional to the ratio of delegates,
+\begin{equation}
+\frac{D_S}{D_C} = R_R \frac{T_S}{T_C}.
+\end{equation}
+Let D be the number of delegates in a state whose primary hasn't happened yet.
+By normalizing $D_S + D_C = D$, we can predict the number of delegates obtained by each candidate.
+Let $x = D_S / D_C$.
+The estimated delegates are given by
+\begin{equation}
+D_S = \frac{x}{1+x} D,
+\end{equation}
+\begin{equation}
+D_C = \frac{1}{1+x} D.
+\end{equation}
+
+\subsection{Estimating Uncertainties}
+To estimate uncertainties, the Twitter feed from each state was assumed to come from a Poisson distribution.
+Therefore, the uncertainties in $T_S$ and $T_C$ are $\sigma_{T_S} = \sqrt{T_S}$ and $\sigma_{T_C} = \sqrt{T_C}$, respectively.
+For each state, the uncertainties in $R_S$ and $R_C$ were propagated using partial derivatives,
+\begin{equation}
+\sigma_R = \frac{R}{V} \sigma_V.
+\end{equation}
+The uncertainties for each state's ratio of ratios were propagated,
+\begin{equation}
+\sigma_{R_R}^2 = \Big(\frac{R_R}{R_S} \sigma_{R_S}\Big)^2 + \Big(\frac{R_R}{R_C} \sigma_{R_C}\Big)^2
+\end{equation}
+The average value for $R_R$ was calculated using
+\begin{equation}
+	R_R = \frac{\Sigma w_i R_{R_i}}{\Sigma w_i},
+\end{equation}
+where the sums are over each state $i$, and the weights are given by $w_i = 1 / \sigma_{R_i}^2$.
+The uncertainty in $R_R$ was calculated using
+\begin{equation}
+\sigma_{R_R} = \frac{1}{\sqrt{\Sigma w_i}}.
+\end{equation}
+Finally, the uncertainty in future states was a combination of Poisson error from each state's Twitter users and the uncertainty in $R_R$.
+Using $x = T_S / T_C$,
+\begin{equation}
+	\sigma_x^2 = \Big(\frac{x}{T_C} \sigma_{T_C}\Big)^2 + \Big(\frac{x}{T_S} \sigma_{T_S}\Big)^2
+\end{equation}
+For each candidate, the delegate uncertainty propagates similarly,
+\begin{equation}
+\sigma_D = \frac{1}{(1+x)^2} D \sigma_x.
+\end{equation}
+
+\section{Results}
+Tweets were accumulated over a period of about ten hours, resulting in 40,500 relevant tweets and 5,000 unique users.
+Typically there were 50 users per candidate per state, so the Poisson errors were pretty significant.
+\\
+\indent
+The average ratio of ratios was given by
+\begin{equation}
+R_R = 0.408 \pm 0.016.
+\end{equation}
+This number essentially tells us Sanders' overrepresentation on Twitter.
+For every matching vote between Sanders and Clinton, there should be a ratio of five-to-two in favor of Sanders over Clinton on Twitter.
+\\
+\indent
+The main results are shown in the tables below.
+South Dakota was excluded for not having any Clinton Twitter supporters (and only 4 Sanders supporters).
+First are the Twitter supporters in the five remaining states.
+\\
+\\
+\begin{centering}
+  \begin{tabular}{|l|l|l|}
+	  \hline
+     State & Sanders Twitter supporters & Clinton Twitter supporters \\
+	  \hline
+	  \hline
+     North Dakota & 4 & 2 \\
+     California & 855 & 250 \\
+     New Jersey & 67 & 44 \\
+     New Mexico & 23 & 10 \\
+     Montana & 13 & 2 \\
+	  \hline
+  \end{tabular}
+\end{centering}
+\\
+\\
+
+Next are the expected delegates in each state.
+\\
+\\
+\begin{centering}
+	\begin{tabular}{|l|l|l|l|l|}
+	  \hline
+  State & Sanders Delegates & Uncertainty & Clinton Delegates & Uncertainty \\
+	  \hline
+	  \hline
+  North Dakota & 8 & 2 & 10 & 1 \\
+  California & 277 & 29 & 198 & 16 \\
+     New Jersey & 48 & 8 & 78 & 7 \\
+     New Mexico & 16 & 5 & 17 & 3 \\
+     Montana & 15 & 4 & 6 & 1 \\
+	  \hline
+  \end{tabular}
+\end{centering}
+\\
+\\
+Finally are the total delegates from the five states.
+\\
+\\
+\begin{centering}
+	\begin{tabular}{|l|l|l|l|l|}
+	  \hline
+	  Candidate & Total Delegates & Uncertainty \\
+	  \hline
+	  \hline
+	  Bernie Sanders & 365 & 31 \\
+	  \hline
+	  Hillary Clinton & 309 & 18 \\
+	  \hline
+  \end{tabular}
+\end{centering}
+\\
+\\
+
+\begin{conclusion}
+Currently Hillary Clinton is ahead by about 270 delegates. 
+We can see that Sanders has a pretty solid lead over Clinton in Calfornia, but is losing in New Jersey.
+On June 7 Sanders will likely close the gap by about 50 delegates, which is probably not significant enough to overcome Hillary Clinton.
+The uncertainties are somewhat large, so some upsets are to be expected.
+In addition, there are likely unaccounted systematics between Twitter behavior in different states or regions.
+\\
+\indent
+It would be interesting to attempt a similar analysis in the general election with Donald Trump.
+This particular analysis exploited the spaced timings of each primary election, which won't be available in the general election.
+However, perhaps votes in past Republican primaries could be used to fit similar ratios.
+
+\end{document}
